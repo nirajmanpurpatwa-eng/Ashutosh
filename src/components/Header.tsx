@@ -1,0 +1,266 @@
+"use client";
+
+import { useState, useEffect } from 'react';
+import { Menu, X } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { supabase } from '../lib/supabase';
+
+interface HeaderProps {
+  activeSection: string;
+  onNavClick: (section: string) => void;
+}
+
+export default function Header({ activeSection, onNavClick }: HeaderProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [logoUrl, setLogoUrl] = useState('');
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      if (!supabase) return;
+      const { data } = await supabase
+        .from('site_images')
+        .select('url')
+        .eq('section', 'config')
+        .eq('category', 'hero')
+        .maybeSingle();
+
+      if (data && data.url) {
+        setLogoUrl(data.url);
+      }
+    };
+    fetchConfig();
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Lock body scroll when menu is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMenuOpen]);
+
+  const navItems = [
+    { id: 'gallery', label: 'Gallery', path: '/#gallery' },
+    { id: 'about', label: 'About', path: '/#about' },
+    { id: 'packages', label: 'Services', path: '/#packages' },
+    { id: 'contact', label: 'More', path: '/#contact' },
+  ];
+
+  return (
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+        isScrolled
+          ? 'bg-dark-500/80 backdrop-blur-xl border-b border-white/10 py-4'
+          : 'bg-gradient-to-b from-black/70 to-transparent py-6'
+      }`}
+    >
+      <nav className="w-full relative px-6 md:px-12">
+        <div className="flex items-center justify-between">
+          {/* Logo */}
+          <Link 
+            href="/" 
+            className="flex items-center group cursor-pointer z-50"
+            onClick={(e) => {
+              e.preventDefault();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              if (pathname !== '/') {
+                router.push('/');
+              }
+            }}
+          >
+            {logoUrl ? (
+              <img src={logoUrl} alt="Logo" className="h-10 md:h-12 object-contain" />
+            ) : (
+              <span className="text-xl md:text-2xl font-serif font-bold tracking-tight text-[#c1272d]">
+                Asutosh Photography
+              </span>
+            )}
+          </Link>
+
+          {/* Desktop Navigation & CTA */}
+          <div className="hidden md:flex items-center justify-end flex-1">
+            <div className="flex items-center space-x-6 lg:space-x-10 mr-8 lg:mr-12">
+              {navItems.map((item) => (
+                <Link
+                  key={item.id}
+                  href={item.path}
+                  onClick={(e) => {
+                    if (item.path.startsWith('/#')) {
+                      e.preventDefault();
+                      if (pathname !== '/') {
+                        router.push(item.path);
+                      } else {
+                        onNavClick(item.path.replace('/#', ''));
+                      }
+                    } else if (item.path === '/') {
+                      e.preventDefault();
+                      if (pathname !== '/') {
+                        router.push('/');
+                      } else {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    }
+                  }}
+                  className={`text-sm lg:text-[15px] font-medium tracking-wide transition-all duration-300 relative group py-2 ${
+                    activeSection === item.id
+                      ? 'text-white'
+                      : 'text-gray-300 hover:text-white'
+                  }`}
+                >
+                  {item.label}
+                  <span className={`absolute bottom-0 left-0 w-full h-0.5 bg-[#ff3333] transform origin-left transition-transform duration-300 ${
+                    activeSection === item.id ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
+                  }`}></span>
+                </Link>
+              ))}
+            </div>
+
+            <a
+              href="#contact"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavClick('contact');
+              }}
+              className="bg-[#050505] text-white px-8 py-2.5 rounded-sm border border-[#ff3333]/50 hover:border-[#ff3333] hover:bg-[#ff3333] transition-all duration-300 text-sm font-semibold tracking-wide"
+            >
+              Book Now
+            </a>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="md:hidden p-2 text-white hover:text-[#c1272d] transition-colors flex items-center justify-center w-10 h-10"
+          >
+            {isMenuOpen ? (
+              <X className="w-7 h-7" />
+            ) : (
+              <div className="flex flex-col gap-1.5 w-6">
+                <span className="w-full h-[2px] bg-current rounded-full"></span>
+                <span className="w-full h-[2px] bg-current rounded-full"></span>
+              </div>
+            )}
+          </button>
+        </div>
+
+        {/* Mobile Navigation Overlay */}
+        <div className={`md:hidden fixed inset-0 z-[60] bg-[#050505] transition-all duration-500 transform ${isMenuOpen ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}`}>
+          {/* Background Image */}
+          <div className="absolute inset-0 z-0">
+            <img 
+              src="https://images.pexels.com/photos/1043474/pexels-photo-1043474.jpeg?auto=compress&cs=tinysrgb&w=1200" 
+              alt="Menu Background" 
+              className="w-full h-full object-cover opacity-20"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#050505]/95 via-[#050505]/80 to-[#050505]/95 backdrop-blur-sm"></div>
+          </div>
+
+          <div className="relative z-10 flex flex-col h-full">
+            <div className="flex items-center justify-between px-6 pt-8 pb-4 border-b border-white/5">
+              <Link 
+                href="/" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  setIsMenuOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  if (pathname !== '/') {
+                    router.push('/');
+                  }
+                }}
+              >
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Logo" className="h-10 object-contain" />
+                ) : (
+                  <span className="text-2xl font-serif font-bold text-[#c1272d]">
+                    Asutosh Photography
+                  </span>
+                )}
+              </Link>
+              <button
+                onClick={() => setIsMenuOpen(false)}
+                className="p-2 text-white hover:text-[#c1272d] transition-colors"
+              >
+                <X className="w-8 h-8" />
+              </button>
+            </div>
+
+            <div className="flex flex-col flex-1 overflow-y-auto">
+            <div className="flex flex-col space-y-6 px-8 py-12">
+              <p className="text-[#ff3333] text-[10px] font-black uppercase tracking-[0.3em] ml-1">Menu</p>
+              {navItems.map((item, index) => (
+                <Link
+                  key={item.id}
+                  href={item.path}
+                  style={{ transitionDelay: `${index * 50}ms` }}
+                  onClick={(e) => {
+                    setIsMenuOpen(false);
+                    if (item.path.startsWith('/#')) {
+                      e.preventDefault();
+                      if (pathname !== '/') {
+                        router.push(item.path);
+                      } else {
+                        onNavClick(item.path.replace('/#', ''));
+                      }
+                    } else if (item.path === '/') {
+                      e.preventDefault();
+                      if (pathname !== '/') {
+                        router.push('/');
+                      } else {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    }
+                  }}
+                  className={`text-4xl font-serif font-bold text-left transition-all duration-500 ${isMenuOpen ? 'translate-x-0 opacity-100' : '-translate-x-8 opacity-0'} ${
+                    activeSection === item.id ? 'text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+              
+              <Link
+                href="/clients"
+                onClick={() => setIsMenuOpen(false)}
+                className={`text-4xl font-serif font-bold text-left transition-all duration-500 delay-300 ${isMenuOpen ? 'translate-x-0 opacity-100' : '-translate-x-8 opacity-0'} text-gray-400 hover:text-white`}
+              >
+                Client Drive
+              </Link>
+            </div>
+            
+            <div className={`mt-auto p-8 border-t border-white/5 transition-all duration-700 delay-300 ${isMenuOpen ? 'opacity-100' : 'opacity-0'}`}>
+               <a
+                href="#contact"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setIsMenuOpen(false);
+                  onNavClick('contact');
+                }}
+                className="block w-full text-center bg-[#050505] text-white px-8 py-4 rounded-sm border border-[#ff3333] hover:bg-[#ff3333] transition-all duration-300 text-lg font-semibold tracking-wide"
+              >
+                Book Now
+              </a>
+            </div>
+          </div>
+        </div>
+        </div>
+      </nav>
+    </header>
+  );
+}
